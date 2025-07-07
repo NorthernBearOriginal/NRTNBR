@@ -42,6 +42,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['me
 // Получить последние 50 сообщений
 $stmt = $pdo->query("SELECT * FROM chat_messages ORDER BY id DESC LIMIT 50");
 $messages = array_reverse($stmt->fetchAll());
+
+// Если это ajax-запрос, возвращаем только HTML сообщений
+if (isset($_GET['ajax'])) {
+    echo '<div id="messages">';
+    foreach($messages as $msg) {
+        echo '<div class="msg">';
+        echo '<span class="msg-user"><a href="profile.php?user_id=' . $msg['user_id'] . '" style="color:#2678b6;text-decoration:underline;">' . htmlspecialchars($msg['first_name'] ?: $msg['username'] ?: 'Гость') . '</a></span>';
+        echo '<span class="msg-time">' . date('H:i', strtotime($msg['created_at'])) . '</span>';
+        echo '<div class="msg-text">' . nl2br(htmlspecialchars($msg['message'])) . '</div>';
+        echo '</div>';
+    }
+    echo '</div>';
+    exit;
+}
 ?><!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -83,9 +97,30 @@ $messages = array_reverse($stmt->fetchAll());
     <script>
         // Получить данные пользователя из Telegram WebApp
         var tgUser = (window.DemoApp && DemoApp.initDataUnsafe.user) || (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) || {};
+        
+        // Функция автоскролла к последнему сообщению
+        function scrollToBottom() {
+            var messagesDiv = document.getElementById('messages');
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Функция загрузки сообщений без перезагрузки страницы
+        function loadMessages() {
+            fetch('chat.php?ajax=1')
+                .then(response => response.text())
+                .then(html => {
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(html, 'text/html');
+                    var newMessages = doc.getElementById('messages').innerHTML;
+                    document.getElementById('messages').innerHTML = newMessages;
+                    scrollToBottom();
+                });
+        }
+        
         document.getElementById('back_btn').onclick = function() {
             window.location.href = 'index.php';
         };
+        
         document.getElementById('chat_form').onsubmit = function(e) {
             e.preventDefault();
             var msg = document.getElementById('chat_input').value.trim();
@@ -96,8 +131,17 @@ $messages = array_reverse($stmt->fetchAll());
             formData.append('first_name', tgUser.first_name || '');
             formData.append('message', msg);
             fetch('chat.php', { method: 'POST', body: formData })
-                .then(() => { document.getElementById('chat_input').value = ''; location.reload(); });
+                .then(() => { 
+                    document.getElementById('chat_input').value = ''; 
+                    loadMessages(); // Обновляем сообщения без перезагрузки
+                });
         };
+        
+        // Автоскролл при загрузке страницы
+        window.addEventListener('load', scrollToBottom);
+        
+        // Периодическое обновление сообщений каждые 3 секунды
+        setInterval(loadMessages, 3000);
     </script>
 </body>
 </html> 
