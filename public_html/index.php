@@ -34,6 +34,9 @@
             margin-bottom: 0.5em;
             color: #2a2a44;
         }
+        #welcome_user a:hover {
+            border-bottom-color: #2678b6 !important;
+        }
         #resources_panel {
             display: flex;
             flex-direction: row;
@@ -218,16 +221,22 @@
             var user = (window.DemoApp && DemoApp.initDataUnsafe.user) || (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user);
             g_user = user;
             var welcome = '';
+            var welcomeElement = document.getElementById('welcome_user');
+            
             if (user) {
-                if (user.first_name) {
-                    welcome = 'Добро пожаловать, ' + user.first_name;
-                } else if (user.username) {
-                    welcome = 'Добро пожаловать, ' + user.username;
+                var username = user.first_name || user.username;
+                if (username) {
+                    welcome = 'Добро пожаловать, ';
+                    welcomeElement.innerHTML = welcome + '<a href="profile.php?user_id=' + user.id + '" style="color: #2678b6; text-decoration: none; cursor: pointer; border-bottom: 1px solid transparent; transition: border-bottom-color 0.2s;">' + username + '</a>';
+                } else {
+                    welcome = 'Добро пожаловать!';
+                    welcomeElement.textContent = welcome;
                 }
             } else {
                 welcome = 'Добро пожаловать!';
+                welcomeElement.textContent = welcome;
             }
-            document.getElementById('welcome_user').textContent = welcome;
+            
             fetchBuildingsAndResources();
         })();
         document.getElementById('build_btn').onclick = function() {
